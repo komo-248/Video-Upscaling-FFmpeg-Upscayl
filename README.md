@@ -1,6 +1,6 @@
 # Video Upscaling – FFmpeg + Upscayl (realesr-animevideov3-x4)
 
-Frame-by-frame 4x video upscaling pipeline using yt-dlp for source download, FFmpeg for frame extraction and reassembly, and Upscayl with the `realesr-animevideov3-x4` model for AI upscaling. Handles both CFR and VFR source video correctly, and reassembles output with high-quality x265 encoding.
+Frame-by-frame 4x video upscaling pipeline using FFmpeg for frame extraction and reassembly, and Upscayl with the `realesr-animevideov3-x4` model for AI upscaling. Handles both CFR and VFR source video correctly, and reassembles output with high-quality x265 encoding.
 
 ---
 
@@ -10,11 +10,10 @@ Frame-by-frame 4x video upscaling pipeline using yt-dlp for source download, FFm
 - [Requirements](#requirements)
 - [Model Selection](#model-selection)
 - [Pipeline](#pipeline)
-  - [Step 1 — Download Source](#step-1--download-source)
-  - [Step 2 — Pre-Check: CFR vs VFR](#step-2--pre-check-cfr-vs-vfr)
-  - [Step 3 — Frame Extraction](#step-3--frame-extraction)
-  - [Step 4 — Upscale](#step-4--upscale)
-  - [Step 5 — Reassemble](#step-5--reassemble)
+  - [Step 1 — Pre-Check: CFR vs VFR](#step-1--pre-check-cfr-vs-vfr)
+  - [Step 2 — Frame Extraction](#step-2--frame-extraction)
+  - [Step 3 — Upscale](#step-3--upscale)
+  - [Step 4 — Reassemble](#step-4--reassemble)
 - [x265 Encoding Parameters](#x265-encoding-parameters)
 - [CFR vs VFR Reference](#cfr-vs-vfr-reference)
 
@@ -28,7 +27,7 @@ Standard video upscaling tools apply interpolation across the whole video, which
 2. Upscales each frame independently at 4x using a trained super-resolution model
 3. Reassembles the upscaled frames with the original audio into a high-quality x265 encode
 
-The result preserves sharp linework and fine detail that interpolation-based upscalers destroy — particularly effective on anime and animated content.
+The result preserves sharp linework and fine detail that interpolation-based upscalers destroy.
 
 ---
 
@@ -36,10 +35,9 @@ The result preserves sharp linework and fine detail that interpolation-based ups
 
 | Tool | Purpose | Install |
 |------|---------|---------|
-| [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Download video/audio | `pip install yt-dlp` |
 | [FFmpeg](https://ffmpeg.org/download.html) | Frame extract + reassemble | System install |
 | [Upscayl](https://upscayl.org/) | AI frame upscaling | Desktop app |
-| GPU | Required for Upscayl | dGPU recommended (see Step 4) |
+| GPU | Required for Upscayl | dGPU recommended (see Step 3) |
 
 ---
 
@@ -59,23 +57,7 @@ Three models were evaluated for this pipeline:
 
 ## Pipeline
 
-### Step 1 — Download Source
-
-Download the best available audio and video streams separately using yt-dlp. Keeping them separate avoids re-encoding the audio track.
-
-```bash
-# Download best audio
-yt-dlp -f bestaudio -o audio.m4a <YouTube-URL>
-
-# Download best video (no audio)
-yt-dlp -f bestvideo -o video.mkv <YouTube-URL>
-```
-
-> Replace `<YouTube-URL>` with the actual URL. Output filenames can be anything — just keep them consistent through the pipeline.
-
----
-
-### Step 2 — Pre-Check: CFR vs VFR
+### Step 1 — Pre-Check: CFR vs VFR
 
 Before extracting frames you need to know whether the video uses a **Constant Frame Rate (CFR)** or **Variable Frame Rate (VFR)**. This determines which FFmpeg flags to use — using the wrong mode causes frame timing errors in the reassembled output.
 
@@ -105,11 +87,11 @@ avg_frame_rate=2997/100
 ```
 These differ → **VFR**.
 
-> Note the exact `r_frame_rate` value — you will need it in Steps 3 and 5.
+> Note the exact `r_frame_rate` value — you will need it in Steps 2 and 4.
 
 ---
 
-### Step 3 — Frame Extraction
+### Step 2 — Frame Extraction
 
 Create an output folder for the frames first:
 ```bash
@@ -126,7 +108,7 @@ ffmpeg -i video.mkv -c:v png -fps_mode cfr -r <r_frame_rate> frames/%08d.png
 ffmpeg -i video.mkv -c:v png -fps_mode vfr frames/%08d.png
 ```
 
-Replace `<r_frame_rate>` with the value from Step 2 (e.g. `24000/1001` or `24`).
+Replace `<r_frame_rate>` with the value from Step 1 (e.g. `24000/1001` or `24`).
 
 The `%08d` pattern zero-pads filenames to 8 digits (`00000001.png`, `00000002.png`, ...), ensuring correct sort order on reassembly.
 
@@ -134,7 +116,7 @@ The `%08d` pattern zero-pads filenames to 8 digits (`00000001.png`, `00000002.pn
 
 ---
 
-### Step 4 — Upscale
+### Step 3 — Upscale
 
 Open Upscayl and configure:
 
@@ -154,7 +136,7 @@ Click **Upscayl** and wait. Progress is shown per-frame. On a mid-range dGPU exp
 
 ---
 
-### Step 5 — Reassemble
+### Step 4 — Reassemble
 
 Combine the upscaled frames with the original audio into a final x265 encode.
 
@@ -233,4 +215,4 @@ The x265 parameter string is tuned for maximum quality at low file size, suitabl
 | ffprobe check | `r_frame_rate == avg_frame_rate` | `r_frame_rate != avg_frame_rate` |
 | Extract flag | `-fps_mode cfr -r <rate>` | `-fps_mode vfr` |
 | Reassemble flag | *(default)* | `-pattern_type sequence -fps_mode passthrough` |
-| Common sources | Most YouTube uploads | Screen recordings, mixed-rate encodes |
+| Common sources | Most web video, camera footage | Screen recordings, mixed-rate encodes |
