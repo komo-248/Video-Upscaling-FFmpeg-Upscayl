@@ -62,6 +62,7 @@ The audio is kept separate throughout and muxed in at the end with no re-encodin
 https://github.com/user-attachments/assets/2666b046-472c-44b0-a808-cc66e3b326b2
 
 
+> **Note:** Frame-by-frame processing means frames can be cut or reordered for consistency, so the output will not align one-to-one with the source. This is an expected characteristic of the pipeline and is why the demonstration video does not match the original frame for frame.
 
 <p align="center"><em>Left: source frame &nbsp;|&nbsp; Right: upscaled output</em></p>
 
@@ -89,8 +90,6 @@ https://github.com/user-attachments/assets/2666b046-472c-44b0-a808-cc66e3b326b2
   <img src="images/demo_comparison11.png" width="400"/>
   <img src="images/demo_comparison12.png" width="400"/>
 </p>
-
-> **Note:** Frame-by-frame processing means frames can be cut or reordered for consistency, so the output will not align one-to-one with the source. This is an expected characteristic of the pipeline and is why the demonstration video does not match the original frame for frame.
 
 ---
 
