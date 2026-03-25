@@ -63,6 +63,7 @@ https://github.com/user-attachments/assets/2666b046-472c-44b0-a808-cc66e3b326b2
 
 
 > **Note:** Frame-by-frame processing means frames can be cut or reordered for consistency, so the output will not align one-to-one with the source. This is an expected characteristic of the pipeline and is why the demonstration video does not match the original frame for frame.
+
 > **Note:** The left side of each comparison shows the original 480p source; the right shows the 4x upscaled output (1920p) scaled down to fit the comparison frame.
 
 <p align="center"><em>Left: source frame &nbsp;|&nbsp; Right: upscaled output</em></p>
