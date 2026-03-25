@@ -19,6 +19,8 @@ A frame-by-frame video upscaling pipeline using FFmpeg for frame extraction and 
   - [Step 4 — Reassemble](#step-4--reassemble)
 - [x265 Encoding Parameters](#x265-encoding-parameters)
 - [CFR vs VFR Reference](#cfr-vs-vfr-reference)
+- [Demonstration](#demonstration)
+- [Upscaling Alone vs. Signal Processing + Regeneration](#upscaling-alone-vs-signal-processing--regeneration)
 - [Credits & Citations](#credits--citations)
 
 ---
@@ -35,7 +37,7 @@ The frame-by-frame approach (extract all frames → upscale each independently �
 - Lossless intermediate: frames are stored as PNG through the upscale step
 
 **What this is not:**
-- A restoration or denoising tool (see the ComfyUI Flux Regen workflow for that)
+- A restoration or denoising tool (see the [ComfyUI Flux Regen workflow](https://github.com/komo-248/ComfyUI-Flux-Regenerative-Upscale) for that)
 - Capable of recovering detail destroyed by compression
 
 ---
@@ -179,7 +181,7 @@ ffmpeg \
   -c:v libx265 \
   -pix_fmt yuv420p10le \
   -preset medium \
-  -x265-params crf=8:aq-mode=3:aq-strength=0.9:psy-rd=1.5:psy-rdoq=1.0:qcomp=0.65:bframes=16:b-adapt=2:rc-lookahead=80:deblock=3,3:strong-intra-smoothing=1:ref=8:temporal-mvp=1:weightb=1:no-sao=1:limit-sao=0 \
+  -x265-params crf=8:aq-mode=3:aq-strength=0.9:psy-rd=1.5:psy-rdoq=1.0:qcomp=0.65:bframes=16:b-adapt=2:rc-lookahead=cfg:bframes=16:b-adapt=2:rc-lookahead=80:deblock=3,3:strong-intra-smoothing=1:ref=8:temporal-mvp=1:weightb=1:no-sao=1:limit-sao=0 \
   -c:a aac -b:a 320k -shortest \
   output.mkv
 ```
@@ -222,6 +224,83 @@ The x265 parameter string is tuned for near-lossless quality archival of upscale
 | Extract flag | `-fps_mode cfr -r <rate>` | `-fps_mode vfr` |
 | Reassemble flag | *(default)* | `-pattern_type sequence -fps_mode passthrough` |
 | Common sources | Most web video, camera footage | Screen recordings, mixed-rate encodes |
+
+---
+
+## Demonstration
+
+> **Copyright disclaimer:** The footage used in this demonstration is from *Hajime no Ippo* and is the property of George Morikawa, Kodansha, and their respective rights holders. It is used here solely for technical evaluation purposes — to demonstrate the restoration capabilities of this workflow on real-world compressed animation sources. No copyright infringement is intended. If you are a rights holder and would like this removed, please open an issue.
+
+https://github.com/komo-248/Video-Upscaling-FFmpeg-Upscayl/assets/videos/demo.mp4
+
+<p align="center"><em>Left: source frame &nbsp;|&nbsp; Right: upscaled output</em></p>
+
+<p align="center">
+  <img src="images/demo_comparison1.png" width="440"/>
+  <img src="images/demo_comparison2.png" width="440"/>
+</p>
+<p align="center">
+  <img src="images/demo_comparison3.png" width="440"/>
+  <img src="images/demo_comparison4.png" width="440"/>
+</p>
+<p align="center">
+  <img src="images/demo_comparison5.png" width="440"/>
+  <img src="images/demo_comparison6.png" width="440"/>
+</p>
+<p align="center">
+  <img src="images/demo_comparison7.png" width="440"/>
+  <img src="images/demo_comparison8.png" width="440"/>
+</p>
+<p align="center">
+  <img src="images/demo_comparison9.png" width="440"/>
+  <img src="images/demo_comparison10.png" width="440"/>
+</p>
+<p align="center">
+  <img src="images/demo_comparison11.png" width="440"/>
+  <img src="images/demo_comparison12.png" width="440"/>
+</p>
+
+> **Note:** Frame-by-frame processing means frames can be cut or reordered for consistency, so the output will not align one-to-one with the source. This is an expected characteristic of the pipeline and is why the demonstration video does not match the original frame for frame.
+
+---
+
+## Upscaling Alone vs. Signal Processing + Regeneration
+
+This pipeline — Real-ESRGAN upscaling via Upscayl — represents the practical baseline for animation upscaling. It is fast, accessible, requires no model setup beyond a desktop app, and produces genuinely good results on clean or lightly compressed sources. For many use cases, it is sufficient.
+
+However, upscaling and restoration are fundamentally different problems, and a pure upscaler has a hard ceiling on what it can do.
+
+### What an upscaler can and cannot do
+
+Real-ESRGAN and similar models are trained to map low-resolution pixels to plausible high-resolution outputs. They do this well when the input is clean — the model has learned the structural patterns of animation and can reliably extrapolate sharper edges and finer detail from a low-res source.
+
+The problem is compression. JPEG blocking, video macroblocking, and ringing artifacts are not low-resolution versions of the original signal — they are corruptions that have replaced the original signal entirely. The upscaler has no way to distinguish between "this flat region is flat because the art is flat" and "this flat region is flat because compression destroyed the gradient that was there." It can only upscale what it sees. Feeding it a compressed frame produces a larger version of a compressed frame — the blocking gets sharper, the ringing gets crisper, and any detail that was destroyed stays destroyed.
+
+### What the ComfyUI workflow adds
+
+The [Flux Regenerative Upscale workflow](https://github.com/komo-248/ComfyUI-Flux-Regenerative-Upscale) was built to address this directly. Rather than upscaling the degraded input, it first analyzes each frame with a stack of signal processing tools to identify exactly where compression damage is present — then uses a diffusion inpainting model (FLUX.1-fill-dev) to regenerate those regions from scratch, guided by the frame's intact structural information (lineart, edges). The upscaler then operates on a frame that has already had its compression artifacts removed and its lost detail reconstructed.
+
+The difference in outcome is most visible on heavily compressed sources — older DVD encodes, low-bitrate streams, anything that has been re-encoded multiple times. On these sources, the upscaler-only output will faithfully reproduce every compression artifact at 4x size. The regenerative workflow will reconstruct what the frame likely looked like before the damage.
+
+### Practical tradeoffs
+
+| | FFmpeg + Upscayl | ComfyUI Flux Regen |
+|--|------------------|--------------------|
+| **Setup** | Simple — desktop app | Complex — ComfyUI, 7 custom node packs, 7 model downloads |
+| **Hardware** | Any modern GPU | ~24GB VRAM (fp32); 16GB with fp8 quantization |
+| **Speed** | Fast | Slow — diffusion inference per frame |
+| **Best on** | Clean or lightly compressed sources | Heavily compressed, degraded, or artifact-heavy sources |
+| **Compression artifacts** | Upscaled alongside content | Identified and regenerated by diffusion model |
+| **Output character** | Faithful to source | Reconstructed — closer to pre-compression original |
+| **Temporal consistency** | High — frame-independent upscaler is stable | High — ControlNet lineart guidance enforces consistency |
+
+### Which to use
+
+Use this pipeline (FFmpeg + Upscayl) when the source is reasonably clean and the goal is simply higher resolution. It is fast, produces consistent results, and requires no specialized hardware beyond a gaming GPU.
+
+Use the [ComfyUI Flux Regen workflow](https://github.com/komo-248/ComfyUI-Flux-Regenerative-Upscale) when the source is heavily compressed, artifact-ridden, or has visibly degraded linework and detail. The additional complexity and compute cost is justified when the source material genuinely has information that needs to be reconstructed rather than just scaled.
+
+For archival-quality work on damaged sources, the regenerative approach is not just better — it is the only approach that actually addresses the underlying problem.
 
 ---
 
