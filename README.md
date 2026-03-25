@@ -1,4 +1,4 @@
-# Video Upscaling – FFmpeg + Upscayl Process and Comparison
+# FFmpeg + Upscayl Process and Comparison
 
 A frame-by-frame video upscaling pipeline using FFmpeg for frame extraction and reassembly, and Upscayl with the `realesr-animevideov3-x4` model for AI-based resolution upscaling. The goal is to increase the resolution of animation and stylized content while maintaining the source's visual identity — linework, color palette, and stylization — without introducing artifacts or altering the art style.
 
